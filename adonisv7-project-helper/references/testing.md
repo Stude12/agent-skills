@@ -215,10 +215,53 @@ test.group('Auth (browser)', (group) => {
 ```
 
 - `visit('/chemin')` ouvre une page sur le serveur de test (port aléatoire).
-- **Ne pas utiliser `page.waitForURL('**/dashboard')`** : la navigation Inertia ne déclenche pas d'événement `load`, l'attente expire (30 s, `TimeoutError`). Attendre plutôt un texte ou un élément de la page cible.
+- **`page.waitForURL('**/todos')` fonctionne** après un clic de connexion avec la navigation Inertia (vérifié : abouti en ~180 ms ; l'attente d'une URL qui n'existe pas expire, comme prévu). Pour attendre un contenu précis de la page cible, un `getByText(...).waitFor()` reste plus robuste. Ne pas attendre une URL qui n'est jamais atteinte (par exemple `**/dashboard` quand la route a été supprimée) : l'attente expire après 30 s.
+- **Toujours borner les attentes** (`{ timeout: 8000 }`) et **transformer une attente qui peut échouer en observation** (`.then(() => true, () => false)`) avant d'asserter : un `waitFor` qui expire dans une assertion de cloisonnement a figé le lanceur de tests (voir « Lanceur figé » ci-dessous).
 - Les sélecteurs (`input[name="email"]`, `button[type="submit"]`) viennent des pages du kit.
 - Lancement : `node ace test browser`. Pour sauter le navigateur : `node ace test unit functional`.
-- Un test navigateur bloqué peut laisser des processus (`chrom`, `bin/test.ts`) : toujours lancer avec `timeout 120 node ace test browser`.
+- Un test navigateur bloqué peut laisser des processus (`chrom`, `bin/test.ts`) : toujours lancer avec `timeout -s KILL 120 node ace test browser`. Avec `timeout` seul, le processus Node fils survit à `SIGTERM` et le shell reste bloqué ; `-s KILL` est nécessaire, et `kill -9 <pid>` par PID exact pour nettoyer (un `pkill -f` trop large peut tuer le shell lui-même).
+
+### Tests à plusieurs onglets ou plusieurs utilisateurs
+
+```ts
+test('un todo créé dans l onglet A apparaît dans l onglet B', async ({ browserContext, assert }) => {
+  const a = await browserContext.newPage()                  // même contexte = même session
+  await a.goto('/login') /* ... connexion ... */
+  await a.waitForURL('**/todos', { timeout: 15000 })
+  const b = await browserContext.newPage()
+  await b.goto('/todos')
+  await b.waitForTimeout(1500)                              // laisser le client Transmit s'abonner
+
+  await send(a, 'POST', '/todos', { title: 'Synchro' })     // voir l'aide ci-dessous
+  await b.getByText('Synchro').waitFor({ timeout: 8000 })   // propagation SSE, sans rechargement
+})
+```
+
+- **Deux onglets du même utilisateur** : `browserContext.newPage()` deux fois (même cookie de session).
+- **Deux utilisateurs** : un second contexte `browser.newContext({ baseURL })`, car le contexte du test est lié à l'URL du serveur de test (port aléatoire) ; `baseURL: page1.url().replace(/\/todos.*/, '')`.
+- **Isoler SSE de l'interface** : créer la ressource par un `fetch` exécuté dans la page A plutôt que par un clic, avec le jeton CSRF lu dans le cookie `XSRF-TOKEN` :
+
+```ts
+const send = (page: any, method: string, url: string, body?: unknown) =>
+  page.evaluate(async ({ method, url, body }: any) => {
+    const token = decodeURIComponent((document.cookie.split('; ').find((c: string) => c.startsWith('XSRF-TOKEN=')) || '').split('=')[1] || '')
+    const r = await fetch(url, { method, headers: { 'content-type': 'application/json', 'x-xsrf-token': token, accept: 'application/json' }, body: body ? JSON.stringify(body) : undefined, redirect: 'manual' })
+    return r.type            // 'opaqueredirect' : le serveur a répondu par une redirection (302)
+  }, { method, url, body })
+```
+
+- **Observer les requêtes d'une page** : `page.on('response', (r) => ...)` ; par exemple, relever le statut de chaque `POST __transmit/subscribe` (204 accepté, 400 refusé).
+- **Fermer les contextes supplémentaires avant d'asserter** : un second `browser.newContext()` laissé ouvert pendant l'échec garde des connexions SSE ouvertes.
+
+### Lanceur figé après un échec (vérifié)
+
+Un test navigateur dont une **assertion échoue pendant que des connexions SSE (Transmit) sont ouvertes** peut laisser `node ace test` figé : le `✖` s'affiche puis plus rien, sans fin. Un échec simple (`assert.equal(1, 2)`) avec ou sans page ouverte, ou après une connexion SSE, se termine normalement ; le blocage est apparu dans un test à deux utilisateurs dont l'attente `waitFor` avait expiré. Ce qui l'a résolu :
+
+1. transformer l'attente qui peut expirer en booléen (`.then(() => true, () => false)`) ;
+2. fermer les contextes supplémentaires **avant** les assertions ;
+3. grouper les assertions après toutes les observations, avec des messages explicites.
+
+Avec ces trois mesures, le test échoue proprement (`le propriétaire doit voir son propre todo en temps réel: expected false to be true`). Cause exacte non identifiée : à ne pas présenter comme un comportement documenté de Japa ou d'AdonisJS.
 
 ## 9. Isolation d'un limiteur de débit partagé
 
@@ -334,6 +377,7 @@ npm run typecheck                      # tsc + vue-tsc : les tests sont typés a
 | `loginAs is not a function` | `authApiClient(app)` (et `sessionApiClient(app)`) absents |
 | `withInertia is not a function` | `inertiaApiClient(app)` absent |
 | `Table '...-test.users' doesn't exist` (commande lancée hors test) | seule la base de test est configurée dans `.env.test`, elle n'est migrée que par `node ace test` ; une commande lancée à la main utilise `.env` |
-| `waitForURL` expire | navigation Inertia sans événement `load` : attendre un élément |
+| `waitForURL` expire | l'URL attendue n'est jamais atteinte (route supprimée, redirection ailleurs) ; vérifier avec `page.url()` ; `waitForURL('**/todos')` fonctionne après une connexion |
+| `node ace test browser` figé après un `✖` | voir « Lanceur figé après un échec » : borner et observer les attentes, fermer les contextes avant d'asserter, lancer avec `timeout -s KILL` |
 | un test échoue seulement dans la suite complète | état partagé (limiteur mémoire, sessions) : nettoyer en `each.setup` |
 | `TypeError` sur `status` attendu 403 | la requête HTML redirige (302) : ajouter `accept: application/json` si besoin d'un 403 |

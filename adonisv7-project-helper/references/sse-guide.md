@@ -71,6 +71,9 @@ transmit.authorize<{ userId: string }>('todos/:userId', (ctx, { userId }) => {
 - Le canal `todos/:userId` est dynamique.
 - Seul l utilisateur propriétaire du canal peut s y abonner.
 - Le preload est chargé au démarrage du serveur grâce à `.adonisrc.ts`.
+- **Vérifier l'enregistrement** : `adonisrc.ts` doit contenir `() => import('#start/transmit')` dans `preloads`. S'il manque, `authorize` n'est jamais chargé et l'abonnement au canal d'un autre utilisateur est accepté (vérifié dans un navigateur : 204 sans le preload, 400 avec). `make:preload transmit` pose une question interactive : en script, ajouter `--register`.
+- **Contrôle dans un navigateur** : `POST __transmit/subscribe` pour `todos/<son id>` renvoie 204 ; pour `todos/<id d'un autre>` il renvoie 400.
+- **L'autorisation ne s'applique qu'à l'abonnement** : sans `registerRoutes((route) => route.middleware(middleware.auth()))`, `ctx.auth.user` n'est pas disponible dans le callback (doc officielle, « Authenticating private channels »).
 
 ## 5. Diffuser des événements depuis le serveur
 
