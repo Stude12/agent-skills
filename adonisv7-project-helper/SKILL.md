@@ -102,6 +102,8 @@ Pour une base non SQLite : `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_D
 - Une soumission de formulaire **redirige** (302) ; un refus Bouncer répond 302 en HTML et 403 en JSON ; `report()` d'une exception n'est pas appelé pour les statuts 400, 401, 422 (voir `errors-logging.md`).
 - Événements v7 : `emitter.on(events.X, [listeners.Y])` avec un **tableau**, `start/events.ts` à créer par `make:preload events --register`, barrels générés au démarrage de `serve` (`architecture.md`).
 - Transaction dans le service, jamais d'appel externe dedans ; `dispatch` après le commit (`architecture.md`).
+- Props Inertia : `type` (pas `interface`) côté Vue, `toISO() ?? ''` pour les dates, `status` casté en union ; sinon `parameter of type 'never'` (`tuyau-transformers.md`, section 5).
+- Supprimer la route `dashboard` du starter impose d'aligner contrôleurs d'auth et layouts (`feature-guide.md`, étape 7).
 - Le guard du kit s'appelle `web` (`auth.use('web')`), les validateurs utilisent `vine.create`.
 - Ne jamais éditer les fichiers générés (`database/schema.ts`, `.adonisjs/**`).
 - Ne jamais renvoyer un modèle Lucid brut à Inertia : passer par un transformer.

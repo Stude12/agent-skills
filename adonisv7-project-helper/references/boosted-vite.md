@@ -98,7 +98,8 @@ export default defineConfig({
 })
 ```
 
-- L'option s'appelle `entryPoints` (casse exacte).
+- L'option s'appelle `entryPoints` (casse exacte) ; `entrypoints` fait échouer le build.
+- Le plugin `import inertia from '@adonisjs/inertia/vite'` **n'existe pas** (`Missing "./vite" specifier in "@adonisjs/inertia" package`, vérifié dans le champ `exports`) : ne pas l'ajouter à `plugins`.
 - L'alias `@generated` pointe vers `.adonisjs/client/` (registry Tuyau, types `Data`). Voir `tuyau-transformers.md`.
 
 ## 5. Vue racine Edge

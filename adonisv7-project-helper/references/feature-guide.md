@@ -105,8 +105,8 @@ export default class TodosController {
         id: t.id,
         title: t.title,
         description: t.description,
-        status: t.status,
-        createdAt: t.createdAt?.toISO(),
+        status: t.status as 'pending' | 'in_progress' | 'done',
+        createdAt: t.createdAt.toISO() ?? '',
       })),
     })
   }
@@ -139,6 +139,8 @@ export default class TodosController {
   }
 }
 ```
+
+> **Typage des props Inertia** (vérifié) : `inertia.render` n'accepte que du JSON. Trois points font échouer le typage (`Argument of type '{ todos: … }' is not assignable to parameter of type 'never'`) : une `DateTime` Luxon non convertie (utiliser `toISO() ?? ''`, car `toISO()` renvoie `string | null`), un `status` typé `string` par le schéma généré (le restreindre par `as 'pending' | 'in_progress' | 'done'` si la page attend l'union) et des props déclarées avec `interface` côté Vue (utiliser `type`). Détail : `tuyau-transformers.md`, section 5 (« Props Inertia écrites à la main »).
 
 ### 5. Définir les routes protégées
 
@@ -266,7 +268,10 @@ Si la fonctionnalité est la page principale après connexion, mettre à jour (d
 
 - `app/middleware/guest_middleware.ts` → `redirectTo = '/todos'`
 - `app/controllers/session_controller.ts` et `new_account_controller.ts` → `response.redirect().toRoute('todos.index')`
-- supprimer ou rediriger la route/page `dashboard` si elle devient inutile, ainsi que l'entrée correspondante dans la navigation (`inertia/layouts/app.vue`).
+- supprimer ou rediriger la route/page `dashboard` si elle devient inutile. Si la route `dashboard` du starter disparaît (par exemple en remplaçant `start/routes.ts`), trois références restent à aligner (vérifié avec `typecheck` et un test de connexion) :
+  1. les contrôleurs `session_controller.ts` et `new_account_controller.ts` (`toRoute('dashboard')` → `Cannot lookup route "dashboard"` à la connexion) ;
+  2. `inertia/layouts/marketing.vue` : `<Link route="dashboard">` → `route="todos.index"` ;
+  3. `inertia/layouts/app.vue` et `inertia/pages/dashboard.vue` : à supprimer s'ils ne servent plus.
 
 > Les noms de routes (`todos.index`) sont générés automatiquement à partir du contrôleur ; vérifier avec `node ace list:routes`.
 

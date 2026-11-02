@@ -137,6 +137,24 @@ defineProps<{ todos: Data.Todo[] }>()
 - Pour ajouter une prop **partagée** (ex. `todoCount`), la retourner dans `share()` de `app/middleware/inertia_middleware.ts`, avec `ctx.inertia.always(...)` si elle doit être présente à chaque visite ; le type est inféré automatiquement.
 - Ne jamais renvoyer un modèle Lucid brut : mots de passe et colonnes internes fuiraient vers le navigateur. Toujours passer par un transformer (comme `UserTransformer` qui exclut `password`).
 
+### Props Inertia écrites à la main : trois pièges de typage (vérifiés)
+
+Sans transformer, un contrôleur qui renvoie des objets construits à la main échoue au typage si la page déclare ses props autrement que le JSON attendu. Le message est toujours le même et peu explicite :
+
+```
+Argument of type '{ todos: { ... }[] }' is not assignable to parameter of type 'never'.
+```
+
+| Cause | Correction |
+|---|---|
+| Props déclarées avec **`interface`** dans la page Vue : une `interface` n'a pas de signature d'index, donc n'est pas assignable à `Record<string, JSONData>` | déclarer avec **`type X = { ... }`** (ou inline) ; testé : interface → erreur, type alias → aucune erreur, même contenu |
+| Date Luxon : `toISO()` retourne **`string \| null`**, pas `string` (la page déclare `createdAt: string`) | `createdAt: t.createdAt.toISO() ?? ''` dans le contrôleur ; le modèle déclare `createdAt: DateTime` (jamais nul), d'où l'appel sans `?.` |
+| `status` typé **`string`** par `database/schema.ts` alors que la page attend l'union `'pending' \| 'in_progress' \| 'done'` | `t.status as 'pending' \| 'in_progress' \| 'done'` |
+
+Les trois corrections sont **nécessaires ensemble** : appliquées seules ou deux à deux, l'erreur persiste (testé). Un `DateTime` brut est refusé aussi (`DateTime` n'est pas du JSON) ; `toJSON()` renvoie `string | null` comme `toISO()`.
+
+À l'exécution, la date arrive dans les props sous forme de chaîne ISO (`2026-11-02T13:20:45.000+00:00`). La page Vue peut garder un test `todo.createdAt ? … : ''` pour une chaîne vide.
+
 ## 6. Transformers et `transmit.broadcast`
 
 `broadcast` attend un objet JSON simple. `ctx.serialize` du kit (`providers/api_provider.ts`) enveloppe sous `data` ; pour un payload brut :
