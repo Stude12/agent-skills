@@ -118,7 +118,7 @@ Sans nettoyage après le test, les tests suivants héritent de l'IP déjà limit
 
 - `.env` n'est jamais versionné (`.gitignore` du kit) ; `.env.example` liste les variables **sans** valeurs sensibles.
 - `APP_KEY` : `node ace generate:key`. Unique par environnement, jamais commité.
-- Toute variable lue par `env.get()` doit être déclarée dans `start/env.ts` (validation au démarrage : le processus s'arrête si elle manque, ce qui est voulu en production).
+- Toute variable lue par `env.get()` doit être déclarée dans `start/env.ts` (règle complète : `database-migrations.md`, section 8).
 - Mots de passe : hachés automatiquement par `withAuthFinder(hash)` sur le modèle `User`. Ne jamais renvoyer un modèle brut au frontend : passer par un transformer (voir `tuyau-transformers.md`).
 - Docker : ne pas copier `.env` dans l'image (`.dockerignore`), voir `docker.md`.
 

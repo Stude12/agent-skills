@@ -6,7 +6,7 @@ Le kit v7 utilise **SQLite** par défaut (`better-sqlite3`, fichier `tmp/db.sqli
 
 1. Installer le pilote : `npm i pg` ou `npm i mysql2` (MariaDB utilise `mysql2`). Si SQLite n'est plus utilisé : `npm uninstall better-sqlite3` et retirer `"better-sqlite3": true` de `allowScripts` dans `package.json`.
 2. `config/database.ts` : ajouter `import env from '#start/env'`, décommenter le bloc `pg` ou `mysql`, passer `connection` à `'pg'`/`'mysql'`, supprimer le bloc `sqlite`.
-3. `start/env.ts` : déclarer les variables (sinon `env.get('DB_HOST')` ne compile pas et la validation au démarrage les ignore) :
+3. `start/env.ts` : déclarer les variables (règle générale : section 8 ci-dessous) :
 
 ```ts
 DB_HOST: Env.schema.string({ format: 'host' }),
@@ -196,3 +196,13 @@ npm run typecheck
 ```
 
 Contrôler en base (`docker compose exec db mariadb -uadonis -psecret <projet>-db -e 'show tables'`) que `adonis_schema`, `users`, `todos`, `categories` existent.
+
+## 8. Variables d'environnement : règle unique
+
+Valable pour **toute** variable lue par `env.get()` (base de données, limiteur, cache, mail...) :
+
+1. la **déclarer dans `start/env.ts`** avec son type (`Env.schema.string()`, `.number()`, `.enum([...])`, `.optional()`) ; sans cela `env.get('X')` ne compile pas ;
+2. la **renseigner** dans `.env`, `.env.example` (sans secret) **et** `.env.test` si les tests en dépendent ;
+3. au démarrage, la validation de `start/env.ts` **arrête le processus** si une variable obligatoire manque ou est invalide : c'est voulu, y compris en production et dans une commande Ace.
+
+Le kit n'utilise pas `DB_CONNECTION` : la connexion par défaut est fixée dans `config/database.ts`.

@@ -98,22 +98,17 @@ Deux skills tiers ont été lus pendant la rédaction. `omakei/adonisjs-architec
 
 Le site `skills.sh` signale ce skill comme « Pass » aux audits de sécurité : cela ne garantit pas l'exactitude technique du contenu.
 
-## 5. Autres changements v6 → v7 à connaître
+## 5. Changements v6 → v7 à connaître
 
-Repris de `v6-to-v7.md` (lu en entier) ; voir aussi `adonis-v6-to-v7-upgrade-agent.md` pour la procédure.
+La **procédure pas à pas** de migration (paquets, compilateur, hooks de l'assembler, tests, chiffrement, `makeUrl` → `urlFor`, helpers supprimés, `HttpRequest`/`HttpResponse`, clé `errors` des flash, Inertia, alias) est dans **`adonis-v6-to-v7-upgrade-agent.md`**. Ne pas la dupliquer ici.
 
-- **Imports** : `@ioc:...` et `App/...` n'existent plus (ESM seulement) ; utiliser les alias `#models/*`, `#controllers/*`... de `package.json`.
-- **URL** : `router.makeUrl` est déprécié → `urlFor` de `@adonisjs/core/services/url_builder` ; dans Edge, `route()` → `urlFor()`.
-- **Classes HTTP** : `Request`/`Response` renommées `HttpRequest`/`HttpResponse` (macros, déclarations de module).
-- **Helpers supprimés** : `getDirname`/`getFilename` → `import.meta.dirname`/`filename` ; `slash` → `stringHelpers.toUnixSlash` ; `cuid` → UUID.
-- **Flash** : la clé `errors` est supprimée ; les erreurs de validation sont sous `inputErrorsBag`.
-- **Hooks de l'assembler** renommés (`onBuildStarting` → `buildStarting`, `onSourceFileChanged` → `fileChanged`, `onDevServerStarted` → `devServerStarted`, `onBuildCompleted` → `buildFinished`).
-- **Globs de tests** : `tests/unit/**/*.spec.{ts,js}` (et non `(.ts|.js)`).
-- **Chiffrement** : `config/encryption.ts` dédié (plus de `appKey` dans `config/app.ts`).
-- **Pages d'état** non rendues pour les requêtes JSON ; `request.all()` fusionne désormais champs et fichiers multipart ; les noms de routes sont **générés** depuis les contrôleurs.
-- **Inertia** : `entrypoint`, `sharedData` retirés de `config/inertia.ts` ; les données partagées passent par le middleware Inertia (`app/middleware/inertia_middleware.ts`, méthode `share`).
-- **Youch** n'est plus embarqué : le dépendre en `devDependency`.
-- **Hooks d'arrêt** de l'application exécutés dans l'ordre inverse.
+Points de `v6-to-v7.md` qui n'y figurent **pas** :
+
+- **Imports** : `@ioc:...` n'existe plus (ESM uniquement) ; utiliser les alias `#models/*`, `#controllers/*`... de `package.json`.
+- **Pages d'état** : non rendues pour les requêtes JSON.
+- **`request.all()`** fusionne désormais champs et fichiers multipart.
+- **Noms de routes** : générés depuis les contrôleurs (`controllers.Session` + `create` → `session.create`), ce qui évite `.as(...)` dans la plupart des cas.
+- **Arrêt de l'application** : les hooks d'arrêt s'exécutent dans l'ordre inverse.
 
 ## 6. Méthode de travail recommandée
 

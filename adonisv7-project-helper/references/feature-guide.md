@@ -33,88 +33,21 @@ Si l utilisateur souhaite gérer plusieurs langues, vérifier si `@adonisjs/i18n
 - Proposer des entrées de traduction pour les libellés, les messages d erreur et les textes de l interface liés à la feature.
 - Ajouter des fichiers de localisation dans `public/lang/<locale>.json` ou le format utilisé par le projet.
 
-### 2. Créer la migration
+### 2. Migration, seeders et modèle
 
-Pour le module Todos, générez une migration (les types de colonnes `increments`, `integer().unsigned()` fonctionnent identiquement sur SQLite, MariaDB et PostgreSQL) :
+Tout le détail est dans **`database-migrations.md`** : migration de la table `todos` (sections 2), schéma auto-généré et modèle `Todo` qui n'ajoute que ses relations (section 3), seeders (section 5).
 
-```bash
-node ace make:migration todos
-```
-
-Exemple de migration :
-
-```ts
-import { BaseSchema } from '@adonisjs/lucid/schema'
-
-export default class extends BaseSchema {
-  protected tableName = 'todos'
-
-  async up() {
-    this.schema.createTable(this.tableName, (table) => {
-      table.increments('id').notNullable()
-      table.integer('user_id').unsigned().notNullable().references('users.id').onDelete('CASCADE')
-      table.string('title').notNullable()
-      table.text('description').nullable()
-      table.enum('status', ['pending', 'in_progress', 'done']).notNullable().defaultTo('pending')
-      table.timestamp('created_at').notNullable()
-      table.timestamp('updated_at').nullable()
-    })
-  }
-
-  async down() {
-    this.schema.dropTable(this.tableName)
-  }
-}
-```
-
-Appliquer la migration :
+Résumé de l'ordre à respecter :
 
 ```bash
-node ace migration:run
-node ace migration:status
+node ace make:migration todos     # écrire la migration
+node ace migration:run            # applique ET génère database/schema.ts (TodoSchema)
+node ace make:model Todo          # SEULEMENT ensuite : le modèle importe #database/schema
 ```
 
-### 2.1. Seeders (optionnel)
+### 3. Ajouter des validateurs
 
-Si la fonctionnalité nécessite des données initiales ou des exemples de test, créez un seeder :
-
-```bash
-node ace make:seeder TodoSeeder
-```
-
-Ensuite, ajoutez les enregistrements dans `database/seeders/TodoSeeder.ts` et exécutez :
-
-```bash
-node ace db:seed
-```
-
-Cela est particulièrement utile pour les fonctionnalités liées aux todos, aux rôles, aux permissions ou aux données de configuration.
-
-### 3. Créer le modèle
-
-Générez le modèle Todo :
-
-```bash
-node ace make:model Todo
-```
-
-En AdonisJS v7, les colonnes sont définies automatiquement dans le schéma généré, donc le modèle ne contient souvent que les relations :
-
-```ts
-import { belongsTo } from '@adonisjs/lucid/orm'
-import type { BelongsTo } from '@adonisjs/lucid/types/relations'
-import { TodoSchema } from '#database/schema'
-import User from '#models/user'
-
-export default class Todo extends TodoSchema {
-  @belongsTo(() => User)
-  declare user: BelongsTo<typeof User>
-}
-```
-
-### 4. Ajouter des validateurs
-
-Le kit utilise `vine.create({...})` (voir `app/validators/user.ts`) ; l'ancienne forme `vine.compile(vine.object({...}))` reste valide mais n'est plus celle du starter. Créer un validateur pour la création :
+Le kit utilise `vine.create({...})` (voir `app/validators/user.ts`) ; l'ancienne forme `vine.compile(vine.object({...}))` reste valide mais n'est plus celle du starter. Créer un validateur pour la création. `description` doit être `.nullable().optional()` : avec `.nullable()` seul, un formulaire qui n'envoie que `title` est refusé (`The description field must be defined`, vérifié) :
 
 ```bash
 node ace make:validator todos/create
@@ -125,7 +58,7 @@ import vine from '@vinejs/vine'
 
 export const createTodoValidator = vine.create({
   title: vine.string().trim().minLength(1).maxLength(255),
-  description: vine.string().trim().nullable(),
+  description: vine.string().trim().nullable().optional(),
 })
 ```
 
@@ -145,7 +78,7 @@ export const updateTodoValidator = vine.create({
 })
 ```
 
-### 5. Implémenter le contrôleur CRUD
+### 4. Implémenter le contrôleur CRUD
 
 > Variante recommandée avec le kit v7 : ne pas construire à la main les objets renvoyés à `inertia.render`. Créer `node ace make:transformer todo` et renvoyer `TodoTransformer.transform(todos)` (voir `tuyau-transformers.md`). L'exemple ci-dessous garde la forme explicite du tutoriel.
 
@@ -207,7 +140,7 @@ export default class TodosController {
 }
 ```
 
-### 6. Définir les routes protégées
+### 5. Définir les routes protégées
 
 Ajoutez un groupe de routes dans `start/routes.ts` :
 
@@ -229,7 +162,7 @@ Vérifiez les routes avec :
 node ace list:routes
 ```
 
-### 7. Créer le frontend Inertia
+### 6. Créer le frontend Inertia
 
 Pour une page feature, utilisez une page Vue qui reçoit les données en props :
 
@@ -327,7 +260,7 @@ const toggleSort = (col: 'title' | 'status' | 'createdAt') => {
 </script>
 ```
 
-### 8. Ajuster les redirections et le flux utilisateur
+### 7. Ajuster les redirections et le flux utilisateur
 
 Si la fonctionnalité est la page principale après connexion, mettre à jour (dans le kit v7, `SessionController.store` et `NewAccountController.store` redirigent vers `dashboard`, et `GuestMiddleware.redirectTo` vaut `'/'`) :
 
@@ -337,7 +270,7 @@ Si la fonctionnalité est la page principale après connexion, mettre à jour (d
 
 > Les noms de routes (`todos.index`) sont générés automatiquement à partir du contrôleur ; vérifier avec `node ace list:routes`.
 
-### 8.1. Évolutions courantes (références dédiées)
+### 7.1. Évolutions courantes (références dédiées)
 
 - **Remember me** : voir `auth-starter.md`, section 6.
 - **Catégories (migrations + seeders + relation)** : voir `database-migrations.md`, sections 4 et 5.
@@ -345,7 +278,7 @@ Si la fonctionnalité est la page principale après connexion, mettre à jour (d
 - **Temps réel entre onglets** : voir `sse-guide.md`.
 - **Layouts, Header, Footer** : voir `inertia-layouts.md`.
 
-### 9. Vérification
+### 8. Vérification
 
 - Vérifiez que la migration est appliquée
 - Contrôlez les routes via `node ace list:routes`
@@ -353,42 +286,20 @@ Si la fonctionnalité est la page principale après connexion, mettre à jour (d
 - Vérifiez la validation côté serveur
 - Assurez-vous que les données sont liées à l utilisateur connecté
 
-### 10. Créer des tests (unitaires, API, navigateur)
+### 9. Tests
 
-La configuration complète (plugins, base de test, factories), les exemples validés et les comportements réels (302 vs 403, CSRF, Inertia, Playwright) sont dans **`testing.md`**. Documentation officielle : <https://docs.adonisjs.com/guides/testing/introduction.md>.
+La mise en place (plugins, base de test, factories), les exemples validés, les pièges (302 vs 403, CSRF, Inertia, Playwright) et les commandes sont dans **`testing.md`**. Ici, seulement ce que la fonctionnalité Todos doit couvrir : pour **chaque** endpoint, **un cas passant et un cas d'erreur**.
 
-Résumé pour la fonctionnalité Todos :
-
-```bash
-npm i -D @japa/api-client playwright     # absents du kit ; playwright requis dès que le plugin browser est enregistré
-node ace make:factory User && node ace make:factory Todo
-node ace make:test todos --suite=functional
-```
-
-Couvrir au minimum, pour **chaque** endpoint, **un cas passant et un cas d'erreur** :
-
-- `GET /todos` : liste uniquement les todos de l'utilisateur connecté (créer deux utilisateurs) ; visiteur redirigé vers `/login` ;
-- `POST /todos` : création (`.withCsrfToken()`), titre vide refusé, requête sans jeton CSRF refusée ;
+- `GET /todos` : ne liste que les todos de l'utilisateur connecté (créer deux utilisateurs) ; un visiteur est redirigé vers `/login` ;
+- `POST /todos` : création, titre vide refusé, requête sans jeton CSRF refusée ;
 - `PATCH /todos/:id` : changement de statut, **et** refus pour la ressource d'un autre utilisateur (vérifier le code de réponse **et** que la donnée n'a pas changé) ;
-- `DELETE /todos/:id` : suppression, refus pour un autre utilisateur.
-
-Rappels qui font échouer les premiers tests :
-
-- une soumission de formulaire **redirige** (302) : utiliser `.redirects(0)` pour asserter le code ;
-- un refus d'autorisation répond **302** pour un formulaire HTML et **403** avec `Accept: application/json` ;
-- `.withCsrfToken()` n'existe que si `shieldApiClient()` est dans `tests/bootstrap.ts` ;
-- utiliser une base de test distincte (`DB_DATABASE` dans `.env.test`) et `testUtils.db().truncate()` dans `group.each.setup`.
+- `DELETE /todos/:id` : suppression, refus pour un autre utilisateur ;
+- navigateur : connexion réussie et refusée, création valide puis invalide, accès non autorisé (`testing.md`, section 8).
 
 ```bash
-node ace test unit functional            # sans navigateur
-timeout 120 node ace test browser        # navigateur, avec garde-fou
+node ace make:test todos --suite=functional
+node ace test unit functional
 ```
-
-### 11. Tests d'interface (navigateur)
-
-Le kit propose le client Japa Browser (Playwright intégré à Japa) : exemple validé, plugins et pièges (`waitForURL` expire avec la navigation Inertia ; installer `playwright`) dans **`testing.md`**, section 8. Documentation : <https://docs.adonisjs.com/guides/testing/browser-tests.md>.
-
-Scénarios à couvrir : connexion réussie, connexion refusée, création avec données valides puis invalides, accès non autorisé. Pour des tests E2E plus larges et multi-navigateurs, Playwright seul reste possible : <https://playwright.dev/docs/intro>.
 
 ## Exemple de structure pour la fonctionnalité
 

@@ -25,7 +25,7 @@ Toutes les pages : `https://docs.adonisjs.com/<chemin>` (voir `official-docs.md`
 ## Règles communes
 
 1. **Toujours** passer par `node ace add` (pas `npm i` seul) : c'est lui qui enregistre le provider et crée la configuration.
-2. Lire ce que la commande a modifié (`git diff`) : elle touche `adonisrc.ts`, `start/env.ts`, `start/kernel.ts`, `.env`, parfois `database/migrations/`. Une variable ajoutée à `start/env.ts` **doit** exister dans `.env`, `.env.example` **et** `.env.test`.
+2. Lire ce que la commande a modifié (`git diff`) : elle touche `adonisrc.ts`, `start/env.ts`, `start/kernel.ts`, `.env`, parfois `database/migrations/`. Pour toute variable ajoutée, appliquer la règle de `database-migrations.md` (section 8).
 3. **Un store `memory` en test**, un vrai store (`database` ou `redis`) en production. Sans cela les tests partagent un état (cas rencontré avec le limiteur : un test qui épuise la limite fait échouer les suivants ; voir `testing.md`, section 9).
 4. Les fakes de test existent pour `mail`, `hash`, `emitter`, `drive` : `using fake = mail.fake()` (doc « Test doubles »). Ne pas appeler un vrai fournisseur d'e-mail ou de stockage depuis les tests.
 5. Pour la production, vérifier que la variable de store (`LIMITER_STORE`, `CACHE_STORE`...) ne vaut pas `memory` quand l'application tourne sur plusieurs instances.

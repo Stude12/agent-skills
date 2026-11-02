@@ -58,7 +58,7 @@ async destroy({ auth, response }: HttpContext) {
 }
 ```
 
-- Les redirections utilisent des **noms de routes** (`dashboard`, `session.create`). Pour pointer ailleurs (ex. `todos.index`), changer ces lignes et `GuestMiddleware.redirectTo` (voir `feature-guide.md`, étape 8).
+- Les redirections utilisent des **noms de routes** (`dashboard`, `session.create`). Pour pointer ailleurs (ex. `todos.index`), changer ces lignes et `GuestMiddleware.redirectTo` (voir `feature-guide.md`, étape 7).
 - Les noms de routes viennent des contrôleurs (`controllers.Session` + `create` → `session.create`) ou de `.as('...')`.
 
 ## 4. Validateurs (VineJS)

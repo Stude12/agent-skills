@@ -69,7 +69,7 @@ Le kit `vue` génère déjà : Inertia + Vue 3, l'authentification session (mod�
 **Par défaut le kit utilise SQLite** (`better-sqlite3`, `tmp/db.sqlite3`, aucune variable `DB_*`). Pour PostgreSQL ou MySQL/MariaDB (`pg` / `mysql2`) :
 
 1. installer le pilote et adapter `config/database.ts` ;
-2. **déclarer les variables `DB_*` dans `start/env.ts`** (sinon `env.get()` échoue) ;
+2. **déclarer les variables `DB_*` dans `start/env.ts`** ;
 3. renseigner `.env` et `.env.example` ;
 4. démarrer la base (`docker.md`) puis `node ace migration:run` (génère aussi `database/schema.ts`, dont dépendent les modèles).
 
@@ -93,7 +93,7 @@ Pour protéger les données : filtre par propriétaire ou policy (`authorization
 
 ## Variables d'environnement
 
-Pour une base non SQLite : `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_DATABASE`. Le kit n'utilise pas `DB_CONNECTION` : la connexion par défaut est fixée dans `config/database.ts`. Toute variable lue par `env.get()` doit être déclarée dans `start/env.ts`.
+Pour une base non SQLite : `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_DATABASE`. **Toute** variable lue par `env.get()` doit être déclarée dans `start/env.ts` : règle unique et détail dans `references/database-migrations.md`, section 8.
 
 ## Conseils pratiques
 
