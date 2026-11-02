@@ -5,7 +5,9 @@ description: 'Assistant pour créer et configurer une application AdonisJS v7, c
 
 # Skill AdonisJS v7
 
-Ce skill guide la création et l'évolution d'une application AdonisJS v7 : choix du kit, base de données, Boosted (Design System Orange), layouts Inertia, authentification, fonctionnalités CRUD, temps réel (SSE), Docker. Le détail est dans `references/` ; ce fichier donne le déroulé et renvoie vers la bonne référence.
+Ce skill guide la création et l'évolution d'une application AdonisJS v7 : choix du kit, base de données, Boosted (Design System Orange), layouts Inertia, authentification et autorisation, fonctionnalités CRUD, tests, sécurité, erreurs et logs, commandes et services, temps réel (SSE), Docker. Le détail est dans `references/` ; ce fichier donne le déroulé et renvoie vers la bonne référence.
+
+**Règle** : ne jamais deviner une API v7 (les données d'entraînement sont surtout v5/v6). En cas de doute, lire la page officielle (`references/official-docs.md`), vérifier dans `node_modules`, puis tester.
 
 ## When to Use This Skill
 
@@ -30,7 +32,14 @@ Ce skill guide la création et l'évolution d'une application AdonisJS v7 : choi
 | Moteur de base, migrations, `schema.ts` généré, seeders, catégories | `references/database-migrations.md` |
 | Tuyau (routes typées), transformers, types `Data` | `references/tuyau-transformers.md` |
 | Docker : base locale, image de production, compose | `references/docker.md` |
-| Fonctionnalité CRUD complète (exemple Todos) et tests | `references/feature-guide.md` |
+| Fonctionnalité CRUD complète (exemple Todos) | `references/feature-guide.md` |
+| Tests : plugins, base de test, factories, HTTP, navigateur, console, doubles | `references/testing.md` |
+| Autorisation : abilities, policies Bouncer | `references/authorization-bouncer.md` |
+| Sécurité : middlewares, limitation de débit, CSRF, secrets | `references/security-middleware.md` |
+| Erreurs, exceptions personnalisées, logger, health checks | `references/errors-logging.md` |
+| Commandes Ace, services, injection de dépendances | `references/ace-services.md` |
+| Paquets optionnels (mail, cache, queue, drive, i18n, redis) | `references/optional-packages.md` |
+| Documentation officielle : URL vérifiées, pièges, changements v6 → v7 | `references/official-docs.md` |
 | Temps réel avec Transmit (SSE) | `references/sse-guide.md` |
 | Migration v6 → v7 | `references/adonis-v6-to-v7-upgrade-agent.md` |
 
@@ -75,6 +84,12 @@ Exemples validés dans `references/docker.md` : MariaDB, PostgreSQL, MySQL (dév
 
 Suivre `references/feature-guide.md` : migration, `migration:run`, modèle, validateurs, contrôleur, routes, page Inertia, tests. Les évolutions courantes sont dans `database-migrations.md` (catégories, seeders) et `auth-starter.md` (remember me).
 
+Pour protéger les données : filtre par propriétaire ou policy (`authorization-bouncer.md`), limitation de débit sur les routes sensibles (`security-middleware.md`). Pour la logique réutilisable : service injecté (`ace-services.md`). Pour les erreurs métier : exception personnalisée (`errors-logging.md`).
+
+### 6. Tests
+
+`references/testing.md` : installer `@japa/api-client` et `playwright`, enregistrer les plugins (dont `shieldApiClient()` pour `.withCsrfToken()`), utiliser une base de test distincte, `testUtils.db().truncate()` entre les tests, et **tester le refus autant que le succès**.
+
 ## Variables d'environnement
 
 Pour une base non SQLite : `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_DATABASE`. Le kit n'utilise pas `DB_CONNECTION` : la connexion par défaut est fixée dans `config/database.ts`. Toute variable lue par `env.get()` doit être déclarée dans `start/env.ts`.
@@ -83,11 +98,14 @@ Pour une base non SQLite : `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_D
 
 - SQLite (défaut, zéro configuration) pour les prototypes ; PostgreSQL ou MariaDB/MySQL pour la production.
 - Ordre à respecter : migration → `node ace migration:run` → modèle (le modèle importe `#database/schema`).
+- Une soumission de formulaire **redirige** (302) ; un refus Bouncer répond 302 en HTML et 403 en JSON ; `report()` d'une exception n'est pas appelé pour les statuts 400, 401, 422 (voir `errors-logging.md`).
+- Le guard du kit s'appelle `web` (`auth.use('web')`), les validateurs utilisent `vine.create`.
 - Ne jamais éditer les fichiers générés (`database/schema.ts`, `.adonisjs/**`).
 - Ne jamais renvoyer un modèle Lucid brut à Inertia : passer par un transformer.
-- Valider avec `npm run typecheck` (tsc + vue-tsc) et `node ace list:routes`.
+- Valider avec `npm run typecheck` (tsc + vue-tsc), `node ace list:routes` et `node ace test unit functional`.
+- Installer un paquet par `node ace add` (pas `npm i` seul) et relire `git diff` après.
 
 ## References
 
-- AdonisJS official documentation: <https://docs.adonisjs.com>
+- AdonisJS official documentation: <https://docs.adonisjs.com> ; index pour LLM : <https://docs.adonisjs.com/llms.txt>
 - Boosted : <https://boosted.orange.com/docs/5.3/getting-started/vite/>

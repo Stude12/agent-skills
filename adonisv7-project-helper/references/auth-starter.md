@@ -116,7 +116,7 @@ this.schema.createTable('remember_me_tokens', (table) => {
   table.increments('id')
   table.integer('tokenable_id').notNullable().unsigned()
     .references('id').inTable('users').onDelete('CASCADE')
-  table.string('hash').notNullable()
+  table.string('hash').notNullable().unique()
   table.timestamp('created_at').notNullable()
   table.timestamp('updated_at').notNullable()
   table.timestamp('expires_at').notNullable()

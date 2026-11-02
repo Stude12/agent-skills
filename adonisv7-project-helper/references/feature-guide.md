@@ -353,89 +353,42 @@ Si la fonctionnalité est la page principale après connexion, mettre à jour (d
 - Vérifiez la validation côté serveur
 - Assurez-vous que les données sont liées à l utilisateur connecté
 
-### 10. Créer des tests unitaires / API
+### 10. Créer des tests (unitaires, API, navigateur)
 
-AdonisJS propose des tests API et unitaires pour valider les fonctionnalités. Utilisez la documentation suivante :
+La configuration complète (plugins, base de test, factories), les exemples validés et les comportements réels (302 vs 403, CSRF, Inertia, Playwright) sont dans **`testing.md`**. Documentation officielle : <https://docs.adonisjs.com/guides/testing/introduction.md>.
 
-<https://docs.adonisjs.com/guides/testing/api-tests>
-
-1. Générez un fichier de test :
+Résumé pour la fonctionnalité Todos :
 
 ```bash
-node ace make:test todos
+npm i -D @japa/api-client playwright     # absents du kit ; playwright requis dès que le plugin browser est enregistré
+node ace make:factory User && node ace make:factory Todo
+node ace make:test todos --suite=functional
 ```
 
-2. Écrivez une suite de tests pour :
+Couvrir au minimum, pour **chaque** endpoint, **un cas passant et un cas d'erreur** :
 
-- création de ressource via POST (cas passant ET cas d'erreur de validation)
-- récupération de la liste via GET (vérifier que seules les données de l'utilisateur sont retournées)
-- mise à jour via PATCH (cas passant ET cas d'erreur)
-- suppression via DELETE (cas passant ET cas d'erreur)
-- autorisation et validation des données
+- `GET /todos` : liste uniquement les todos de l'utilisateur connecté (créer deux utilisateurs) ; visiteur redirigé vers `/login` ;
+- `POST /todos` : création (`.withCsrfToken()`), titre vide refusé, requête sans jeton CSRF refusée ;
+- `PATCH /todos/:id` : changement de statut, **et** refus pour la ressource d'un autre utilisateur (vérifier le code de réponse **et** que la donnée n'a pas changé) ;
+- `DELETE /todos/:id` : suppression, refus pour un autre utilisateur.
 
-**Obligation** : Pour chaque endpoint, ajoutez au minimum **un cas passant** et **un cas d'erreur**.
+Rappels qui font échouer les premiers tests :
 
-3. Exemple (le kit fournit seulement `tests/bootstrap.ts` ; créer le dossier `tests/functional/` et enregistrer le plugin `apiClient`/`session` si besoin, voir la doc Japa) :
-
-```ts
-import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
-import User from '#models/user'
-import Todo from '#models/todo'
-
-test.group('Todos', (group) => {
-  group.each.setup(() => testUtils.db().withGlobalTransaction())
-
-  test('create a todo when authenticated', async ({ client, assert }) => {
-    const user = await User.create({ email: 'a@b.c', password: 'secret1234', fullName: 'A' })
-    const response = await client
-      .post('/todos')
-      .loginAs(user)
-      .withCsrfToken()
-      .redirects(0)
-      .json({ title: 'New todo', description: 'Test todo' })
-
-    response.assertStatus(302)
-    assert.equal(await Todo.query().where('userId', user.id).count('* as total').first().then((r) => Number(r?.$extras.total)), 1)
-  })
-
-  test('redirect guests to login', async ({ client }) => {
-    const response = await client.post('/todos').redirects(0).json({ title: 'x' })
-    response.assertStatus(302)
-  })
-})
-```
-
-Notes : `.loginAs(user)` et `.withCsrfToken()` viennent de `@japa/api-client` / `@adonisjs/session` ; le starter n'inclut pas `@japa/api-client` (seulement `@japa/assert`, `@japa/plugin-adonisjs`, `@japa/browser-client`) : l'installer (`node ace add @japa/api-client` ou `npm i -D @japa/api-client` et l'ajouter aux `plugins` de `tests/bootstrap.ts`). Les suites configurées dans `adonisrc.ts` sont `unit`, `functional` et `browser` (`node ace test functional`). `.env.test` fixe `SESSION_DRIVER=memory` ; prévoir une base de test distincte (`DB_DATABASE`) quand on n'est plus sur SQLite.
-
-4. Lancez les tests :
+- une soumission de formulaire **redirige** (302) : utiliser `.redirects(0)` pour asserter le code ;
+- un refus d'autorisation répond **302** pour un formulaire HTML et **403** avec `Accept: application/json` ;
+- `.withCsrfToken()` n'existe que si `shieldApiClient()` est dans `tests/bootstrap.ts` ;
+- utiliser une base de test distincte (`DB_DATABASE` dans `.env.test`) et `testUtils.db().truncate()` dans `group.each.setup`.
 
 ```bash
-node ace test
+node ace test unit functional            # sans navigateur
+timeout 120 node ace test browser        # navigateur, avec garde-fou
 ```
 
-### 11. Créer des tests d interface (browser)
+### 11. Tests d'interface (navigateur)
 
-Pour tester l interface utilisateur, proposez à l utilisateur de choisir entre :
+Le kit propose le client Japa Browser (Playwright intégré à Japa) : exemple validé, plugins et pièges (`waitForURL` expire avec la navigation Inertia ; installer `playwright`) dans **`testing.md`**, section 8. Documentation : <https://docs.adonisjs.com/guides/testing/browser-tests.md>.
 
-- Japa Browser (tests intégrés AdonisJS) : <https://docs.adonisjs.com/guides/testing/browser-tests>
-- Playwright (tests de bout en bout indépendants) : <https://playwright.dev/docs/intro>
-
-Si vous préférez rester dans l écosystème AdonisJS, utilisez Japa Browser pour automatiser les interactions avec les pages, les formulaires et les composants.
-
-**Obligation** : Pour chaque scénario utilisateur important, ajoutez au minimum **un cas passant** (chemin normal) et **un cas d'erreur** (erreur de validation, accès refusé, etc.).
-
-Exemple de workflow :
-
-1. Définir les scénarios importants (connexion, création avec données valides, création avec données invalides, modification, suppression, accès non autorisé)
-2. Vérifier les éléments visibles et les messages d erreur
-3. Simuler les actions utilisateur sur le frontend (clic, saisie, validation)
-4. Exécuter les tests en continu pendant le développement
-
-Ensuite, ajoutez une note pour demander au client quel outil il souhaite utiliser :
-
-- `japa-browser` si vous voulez un support natif AdonisJS
-- `playwright` si vous voulez des tests E2E plus larges et multi-plateforme
+Scénarios à couvrir : connexion réussie, connexion refusée, création avec données valides puis invalides, accès non autorisé. Pour des tests E2E plus larges et multi-navigateurs, Playwright seul reste possible : <https://playwright.dev/docs/intro>.
 
 ## Exemple de structure pour la fonctionnalité
 
