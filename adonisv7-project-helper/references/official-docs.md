@@ -72,12 +72,13 @@ Vérifié : `guides/digging-deeper/mail` → 35 266 octets de Markdown ; `guides
 | Erreurs, logs | `errors-logging.md` | `guides/basics/exception-handling`, `guides/digging-deeper/logger` |
 | Sécurité, middlewares | `security-middleware.md` | `guides/security/*`, `guides/basics/middleware` |
 | Commandes, services, DI | `ace-services.md` | `guides/ace/*`, `guides/concepts/dependency-injection` |
+| Architecture, événements, transactions | `architecture.md` | `guides/digging-deeper/emitter`, `guides/concepts/dependency-injection`, `guides/database/lucid` |
 | Déploiement, Docker | `docker.md` | `deployment` |
 | Paquets optionnels | `optional-packages.md` | `guides/digging-deeper/*` |
 
 ## 4. Pièges d'autres sources (vérifiés contre la doc et `node_modules`)
 
-Un skill tiers lu pendant la rédaction (`kamranallahyar/adonisjs-v7-agent-skill`) contient plusieurs exemples **qui ne correspondent pas à la v7** ; ne pas les recopier :
+Deux skills tiers ont été lus pendant la rédaction. `omakei/adonisjs-architecture-skill` vise la **v6** : ses écarts avec la v7 sont listés et vérifiés dans `architecture.md`, section 11. `kamranallahyar/adonisjs-v7-agent-skill` contient plusieurs exemples **qui ne correspondent pas à la v7** ; ne pas les recopier :
 
 | Exemple erroné | Réalité vérifiée |
 |---|---|

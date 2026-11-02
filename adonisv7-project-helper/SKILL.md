@@ -37,6 +37,7 @@ Ce skill guide la création et l'évolution d'une application AdonisJS v7 : choi
 | Autorisation : abilities, policies Bouncer | `references/authorization-bouncer.md` |
 | Sécurité : middlewares, limitation de débit, CSRF, secrets | `references/security-middleware.md` |
 | Erreurs, exceptions personnalisées, logger, health checks | `references/errors-logging.md` |
+| Architecture : quand ajouter service/repository/événement/contrat, transactions, événements v7 | `references/architecture.md` |
 | Commandes Ace, services, injection de dépendances | `references/ace-services.md` |
 | Paquets optionnels (mail, cache, queue, drive, i18n, redis) | `references/optional-packages.md` |
 | Documentation officielle : URL vérifiées, pièges, changements v6 → v7 | `references/official-docs.md` |
@@ -84,7 +85,7 @@ Exemples validés dans `references/docker.md` : MariaDB, PostgreSQL, MySQL (dév
 
 Suivre `references/feature-guide.md` : migration, `migration:run`, modèle, validateurs, contrôleur, routes, page Inertia, tests. Les évolutions courantes sont dans `database-migrations.md` (catégories, seeders) et `auth-starter.md` (remember me).
 
-Pour protéger les données : filtre par propriétaire ou policy (`authorization-bouncer.md`), limitation de débit sur les routes sensibles (`security-middleware.md`). Pour la logique réutilisable : service injecté (`ace-services.md`). Pour les erreurs métier : exception personnalisée (`errors-logging.md`).
+Pour protéger les données : filtre par propriétaire ou policy (`authorization-bouncer.md`), limitation de débit sur les routes sensibles (`security-middleware.md`). Pour la logique réutilisable : service injecté (`ace-services.md`) ; pour décider s'il faut un service, un repository, des événements ou un contrat : `architecture.md` (échelle de décision, ne pas tout structurer par principe). Pour les erreurs métier : exception personnalisée (`errors-logging.md`).
 
 ### 6. Tests
 
@@ -99,6 +100,8 @@ Pour une base non SQLite : `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_D
 - SQLite (défaut, zéro configuration) pour les prototypes ; PostgreSQL ou MariaDB/MySQL pour la production.
 - Ordre à respecter : migration → `node ace migration:run` → modèle (le modèle importe `#database/schema`).
 - Une soumission de formulaire **redirige** (302) ; un refus Bouncer répond 302 en HTML et 403 en JSON ; `report()` d'une exception n'est pas appelé pour les statuts 400, 401, 422 (voir `errors-logging.md`).
+- Événements v7 : `emitter.on(events.X, [listeners.Y])` avec un **tableau**, `start/events.ts` à créer par `make:preload events --register`, barrels générés au démarrage de `serve` (`architecture.md`).
+- Transaction dans le service, jamais d'appel externe dedans ; `dispatch` après le commit (`architecture.md`).
 - Le guard du kit s'appelle `web` (`auth.use('web')`), les validateurs utilisent `vine.create`.
 - Ne jamais éditer les fichiers générés (`database/schema.ts`, `.adonisjs/**`).
 - Ne jamais renvoyer un modèle Lucid brut à Inertia : passer par un transformer.
