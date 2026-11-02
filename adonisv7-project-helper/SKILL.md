@@ -5,194 +5,89 @@ description: 'Assistant pour créer et configurer une application AdonisJS v7, c
 
 # Skill AdonisJS v7
 
-Ce skill guide la création d une application AdonisJS v7. Il aide à choisir le nom du projet, le kit frontend, la base de données, la configuration Docker et les variables d environnement.
+Ce skill guide la création et l'évolution d'une application AdonisJS v7 : choix du kit, base de données, Boosted (Design System Orange), layouts Inertia, authentification, fonctionnalités CRUD, temps réel (SSE), Docker. Le détail est dans `references/` ; ce fichier donne le déroulé et renvoie vers la bonne référence.
 
 ## When to Use This Skill
 
-- L utilisateur souhaite démarrer un projet AdonisJS v7
+- L'utilisateur souhaite démarrer un projet AdonisJS v7
 - Il doit choisir entre Hypermedia, Vue, React ou API
-- Il veut une base de données autre que SQLite
+- Il veut une base de données autre que SQLite (PostgreSQL, MySQL, MariaDB)
 - Il demande une configuration Docker ou un exemple de `.env`
+- Il veut ajouter Boosted/Orange, des layouts, une fonctionnalité CRUD, des tests ou du temps réel
 
 ## Prerequisites
 
-- Node.js installé
-- npm disponible
-- Connaissance du choix de kit AdonisJS
-- Optionnel : Docker si l utilisateur veut des services containerisés
+- Node.js >= 24 et npm
+- Optionnel : Docker pour la base de données ou l'image de production
+
+## Index des références
+
+| Sujet | Fichier |
+|---|---|
+| Boosted + Vite (SCSS ou CSS, polices Orange, pièges `@popperjs/core`) | `references/boosted-vite.md` |
+| Layouts Inertia, `<Link>`/`<Form>` typés, toasts flash | `references/inertia-layouts.md` |
+| Auth fournie par le kit, modèle `User`, middlewares, remember me | `references/auth-starter.md` |
+| Moteur de base, migrations, `schema.ts` généré, seeders, catégories | `references/database-migrations.md` |
+| Tuyau (routes typées), transformers, types `Data` | `references/tuyau-transformers.md` |
+| Docker : base locale, image de production, compose | `references/docker.md` |
+| Fonctionnalité CRUD complète (exemple Todos) et tests | `references/feature-guide.md` |
+| Temps réel avec Transmit (SSE) | `references/sse-guide.md` |
+| Migration v6 → v7 | `references/adonis-v6-to-v7-upgrade-agent.md` |
 
 ## Step-by-Step Workflows
 
-### 1. Créer le projet AdonisJS
-
-Utiliser la commande officielle :
+### 1. Créer le projet
 
 ```bash
 npm create adonisjs@latest <nom-du-projet> -- --kit=<kit>
 ```
 
-Kits possibles :
+Flags acceptés : `--kit`, `--git-init`, `--pkg=<npm|pnpm|yarn>`, `--skip-migrations`, `--verbose`. Il n'existe **pas** de `--db`, `--adapter` ni `--auth-guard` : la base se change après la création (étape 3).
 
-- `hypermedia`
-- `vue`
-- `react`
-- `api`
+Kits : `hypermedia` (full-stack rendu serveur), `vue`, `react` (Inertia), `api` (sans interface).
 
-### 2. Choisir l interface graphique
+Le kit `vue` génère déjà : Inertia + Vue 3, l'authentification session (modèle `User`, `SessionController`, `NewAccountController`, validateurs VineJS), la migration `users`, des layouts et un CSS maison (`inertia/css/app.css`), une page `home`, Tuyau et les transformers. **Inertia est déjà installé**, ne pas le rajouter. Voir `auth-starter.md` et `tuyau-transformers.md`.
 
-- `hypermedia` pour une application AdonisJS full-stack avec rendu serveur
-- `vue` pour une application avec Vue.js côté frontend
-- `react` pour une application avec React
-- `api` si aucune interface graphique n est requise
+### 2. Frontend
 
-### 2.1. Référence SSE pour le frontend
+- **Boosted (Orange / Bootstrap 5)** : `npm i boosted @popperjs/core` (le second est **obligatoire**, sinon Vite échoue). Deux variantes (SCSS avec police Orange, ou CSS précompilé) et les pièges (le CSS du kit dont dépendent les pages `login`/`dashboard`) sont dans `references/boosted-vite.md`.
+- **Layouts et navigation** : `references/inertia-layouts.md` (layout persistant via `defineOptions`, toasts flash lus dans `usePage().flash`, `<Link route>` et `<Form route>`).
+- **Temps réel (SSE)** : demander à l'utilisateur s'il veut des mises à jour temps réel ; si oui, suivre `references/sse-guide.md` (AdonisJS Transmit).
 
-Pour un frontend qui veut des mises à jour temps réel, utiliser AdonisJS Transmit avec Server-Sent Events (SSE) est une bonne option. Transmit prend en charge l abonnement sécurisé, la diffusion côté serveur et l écoute côté client.
+### 3. Base de données
 
-Demander à l utilisateur s il souhaite activer SSE côté frontend.
+**Par défaut le kit utilise SQLite** (`better-sqlite3`, `tmp/db.sqlite3`, aucune variable `DB_*`). Pour PostgreSQL ou MySQL/MariaDB (`pg` / `mysql2`) :
 
-Pour un guide complet, consulter `references/sse-guide.md`.
-Pour créer une fonctionnalité, voir `references/feature-guide.md`.
+1. installer le pilote et adapter `config/database.ts` ;
+2. **déclarer les variables `DB_*` dans `start/env.ts`** (sinon `env.get()` échoue) ;
+3. renseigner `.env` et `.env.example` ;
+4. démarrer la base (`docker.md`) puis `node ace migration:run` (génère aussi `database/schema.ts`, dont dépendent les modèles).
 
-### 3. Configurer la base de données
+Détail complet : `references/database-migrations.md`.
 
-Si l utilisateur choisit une base non SQLite, proposer la configuration et le pilote correspondant :
+Nom de base par défaut : `{{projectName}}-db`. Demander à l'utilisateur si ce nom lui convient, sinon utiliser sa valeur.
 
-- PostgreSQL : package `pg`
-- MySQL / MariaDB : package `mysql2`
+### 4. Docker
 
-Par défaut, le nom de la base de données doit être `{{projectName}}-db`.
+Exemples validés dans `references/docker.md` : MariaDB, PostgreSQL, MySQL (développement) et Dockerfile de production (`node ace build`, testé). Commande de base : `docker compose up -d --wait`.
 
-- Demander à l utilisateur si ce nom lui convient.
-- S il souhaite un autre nom, utiliser sa valeur personnalisée.
+### 5. Fonctionnalité métier
 
-### 4. Générer des exemples Docker
+Suivre `references/feature-guide.md` : migration, `migration:run`, modèle, validateurs, contrôleur, routes, page Inertia, tests. Les évolutions courantes sont dans `database-migrations.md` (catégories, seeders) et `auth-starter.md` (remember me).
 
-Proposer un `docker-compose.yml` si une base de données locale est souhaitée.
+## Variables d'environnement
 
-#### Exemple `docker-compose.yml` pour PostgreSQL
-
-```yaml
-version: '3.8'
-services:
-  db:
-    image: postgres:15-alpine
-    restart: unless-stopped
-    environment:
-      - POSTGRES_USER=adonis
-      - POSTGRES_PASSWORD=secret
-      - POSTGRES_DB={{projectName}}-db
-    ports:
-      - '5432:5432'
-    volumes:
-      - db_data:/var/lib/postgresql/data
-
-volumes:
-  db_data:
-```
-
-#### Exemple `docker-compose.yml` pour MySQL/MariaDB
-
-```yaml
-version: '3.8'
-services:
-  db:
-    image: mysql:8.0
-    restart: unless-stopped
-    environment:
-      - MYSQL_ROOT_PASSWORD=secret
-      - MYSQL_DATABASE={{projectName}}-db
-      - MYSQL_USER=adonis
-      - MYSQL_PASSWORD=secret
-    ports:
-      - '3306:3306'
-    volumes:
-      - db_data:/var/lib/mysql
-
-volumes:
-  db_data:
-```
-
-### 5. Exemple de `Dockerfile` pour AdonisJS
-
-```dockerfile
-FROM node:24-alpine AS builder
-WORKDIR /app
-
-COPY package*.json ./
-RUN npm install
-COPY . ./
-RUN npm run build
-
-FROM node:24-alpine AS runtime
-WORKDIR /app
-COPY --from=builder /app .
-RUN npm prune --production
-
-EXPOSE 3333
-CMD ["node", "ace", "serve", "--watch"]
-```
-
-### 6. Exemple `docker-compose.yml` avec application et base de données
-
-```yaml
-version: '3.8'
-services:
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    ports:
-      - '3333:3333'
-    environment:
-      - PORT=3333
-      - NODE_ENV=development
-      - DB_CONNECTION=pg # ou mysql
-      - DB_HOST=db
-      - DB_PORT=5432 # ou 3306
-      - DB_USER=adonis
-      - DB_PASSWORD=secret
-      - DB_DATABASE={{projectName}}-db
-    depends_on:
-      - db
-
-  db:
-    image: postgres:15-alpine
-    restart: unless-stopped
-    environment:
-      - POSTGRES_USER=adonis
-      - POSTGRES_PASSWORD=secret
-      - POSTGRES_DB={{projectName}}-db
-    ports:
-      - '5432:5432'
-    volumes:
-      - db_data:/var/lib/postgresql/data
-
-volumes:
-  db_data:
-```
-
-## Variables d environnement
-
-Indiquer les variables à définir dans le fichier `.env` :
-
-- `DB_CONNECTION`
-- `DB_HOST`
-- `DB_PORT`
-- `DB_USER`
-- `DB_PASSWORD`
-- `DB_DATABASE`
+Pour une base non SQLite : `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_DATABASE`. Le kit n'utilise pas `DB_CONNECTION` : la connexion par défaut est fixée dans `config/database.ts`. Toute variable lue par `env.get()` doit être déclarée dans `start/env.ts`.
 
 ## Conseils pratiques
 
-- Proposer `SQLite` pour les prototypes simples
-- Suggérer PostgreSQL ou MySQL pour les environnements de production
-- Adapter la configuration Docker aux besoins de l application
+- SQLite (défaut, zéro configuration) pour les prototypes ; PostgreSQL ou MariaDB/MySQL pour la production.
+- Ordre à respecter : migration → `node ace migration:run` → modèle (le modèle importe `#database/schema`).
+- Ne jamais éditer les fichiers générés (`database/schema.ts`, `.adonisjs/**`).
+- Ne jamais renvoyer un modèle Lucid brut à Inertia : passer par un transformer.
+- Valider avec `npm run typecheck` (tsc + vue-tsc) et `node ace list:routes`.
 
 ## References
 
 - AdonisJS official documentation: <https://docs.adonisjs.com>
-- Référence SSE/Transmit pour frontend : `references/sse-guide.md`
-- Guide de création de fonctionnalité : `references/feature-guide.md`
-- Guide mise à niveau v6 → v7 : `references/adonis-v6-to-v7-upgrade-agent.md`
+- Boosted : <https://boosted.orange.com/docs/5.3/getting-started/vite/>

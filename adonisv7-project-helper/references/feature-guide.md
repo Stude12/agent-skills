@@ -35,7 +35,7 @@ Si l utilisateur souhaite gérer plusieurs langues, vérifier si `@adonisjs/i18n
 
 ### 2. Créer la migration
 
-Pour le module Todos, générez une migration :
+Pour le module Todos, générez une migration (les types de colonnes `increments`, `integer().unsigned()` fonctionnent identiquement sur SQLite, MariaDB et PostgreSQL) :
 
 ```bash
 node ace make:migration todos
@@ -114,7 +114,7 @@ export default class Todo extends TodoSchema {
 
 ### 4. Ajouter des validateurs
 
-Créer un validateur pour la création :
+Le kit utilise `vine.create({...})` (voir `app/validators/user.ts`) ; l'ancienne forme `vine.compile(vine.object({...}))` reste valide mais n'est plus celle du starter. Créer un validateur pour la création :
 
 ```bash
 node ace make:validator todos/create
@@ -123,12 +123,10 @@ node ace make:validator todos/create
 ```ts
 import vine from '@vinejs/vine'
 
-export const createTodoValidator = vine.compile(
-  vine.object({
-    title: vine.string().trim().minLength(1).maxLength(255),
-    description: vine.string().trim().nullable(),
-  })
-)
+export const createTodoValidator = vine.create({
+  title: vine.string().trim().minLength(1).maxLength(255),
+  description: vine.string().trim().nullable(),
+})
 ```
 
 Puis un validateur pour la mise à jour :
@@ -140,16 +138,16 @@ node ace make:validator todos/update
 ```ts
 import vine from '@vinejs/vine'
 
-export const updateTodoValidator = vine.compile(
-  vine.object({
-    title: vine.string().trim().minLength(1).maxLength(255).optional(),
-    description: vine.string().trim().nullable().optional(),
-    status: vine.enum(['pending', 'in_progress', 'done'] as const).optional(),
-  })
-)
+export const updateTodoValidator = vine.create({
+  title: vine.string().trim().minLength(1).maxLength(255).optional(),
+  description: vine.string().trim().nullable().optional(),
+  status: vine.enum(['pending', 'in_progress', 'done'] as const).optional(),
+})
 ```
 
 ### 5. Implémenter le contrôleur CRUD
+
+> Variante recommandée avec le kit v7 : ne pas construire à la main les objets renvoyés à `inertia.render`. Créer `node ace make:transformer todo` et renvoyer `TodoTransformer.transform(todos)` (voir `tuyau-transformers.md`). L'exemple ci-dessous garde la forme explicite du tutoriel.
 
 Générez un contrôleur resource :
 
@@ -331,10 +329,21 @@ const toggleSort = (col: 'title' | 'status' | 'createdAt') => {
 
 ### 8. Ajuster les redirections et le flux utilisateur
 
-Si la fonctionnalité est la page principale après connexion, mettez à jour les redirections :
+Si la fonctionnalité est la page principale après connexion, mettre à jour (dans le kit v7, `SessionController.store` et `NewAccountController.store` redirigent vers `dashboard`, et `GuestMiddleware.redirectTo` vaut `'/'`) :
 
 - `app/middleware/guest_middleware.ts` → `redirectTo = '/todos'`
-- contrôleurs de session et d inscription → `response.redirect().toRoute('todos.index')`
+- `app/controllers/session_controller.ts` et `new_account_controller.ts` → `response.redirect().toRoute('todos.index')`
+- supprimer ou rediriger la route/page `dashboard` si elle devient inutile, ainsi que l'entrée correspondante dans la navigation (`inertia/layouts/app.vue`).
+
+> Les noms de routes (`todos.index`) sont générés automatiquement à partir du contrôleur ; vérifier avec `node ace list:routes`.
+
+### 8.1. Évolutions courantes (références dédiées)
+
+- **Remember me** : voir `auth-starter.md`, section 6.
+- **Catégories (migrations + seeders + relation)** : voir `database-migrations.md`, sections 4 et 5.
+- **Sérialisation propre vers le frontend et le temps réel** : voir `tuyau-transformers.md` (un `TodoTransformer` remplace les objets construits à la main dans `index`, `store`, `update` et dans les `transmit.broadcast()`).
+- **Temps réel entre onglets** : voir `sse-guide.md`.
+- **Layouts, Header, Footer** : voir `inertia-layouts.md`.
 
 ### 9. Vérification
 
@@ -366,27 +375,38 @@ node ace make:test todos
 
 **Obligation** : Pour chaque endpoint, ajoutez au minimum **un cas passant** et **un cas d'erreur**.
 
-3. Exemple simple :
+3. Exemple (le kit fournit seulement `tests/bootstrap.ts` ; créer le dossier `tests/functional/` et enregistrer le plugin `apiClient`/`session` si besoin, voir la doc Japa) :
 
 ```ts
-import test from '@japa/runner'
-import Todo from 'App/Models/Todo'
+import { test } from '@japa/runner'
+import testUtils from '@adonisjs/core/services/test_utils'
+import User from '#models/user'
+import Todo from '#models/todo'
 
 test.group('Todos', (group) => {
-  group.setup(async () => {
-    await Todo.query().delete()
+  group.each.setup(() => testUtils.db().withGlobalTransaction())
+
+  test('create a todo when authenticated', async ({ client, assert }) => {
+    const user = await User.create({ email: 'a@b.c', password: 'secret1234', fullName: 'A' })
+    const response = await client
+      .post('/todos')
+      .loginAs(user)
+      .withCsrfToken()
+      .redirects(0)
+      .json({ title: 'New todo', description: 'Test todo' })
+
+    response.assertStatus(302)
+    assert.equal(await Todo.query().where('userId', user.id).count('* as total').first().then((r) => Number(r?.$extras.total)), 1)
   })
 
-  test('create a todo', async ({ client }) => {
-    const response = await client.post('/todos').json({
-      title: 'New todo',
-      description: 'Test todo',
-    })
-
+  test('redirect guests to login', async ({ client }) => {
+    const response = await client.post('/todos').redirects(0).json({ title: 'x' })
     response.assertStatus(302)
   })
 })
 ```
+
+Notes : `.loginAs(user)` et `.withCsrfToken()` viennent de `@japa/api-client` / `@adonisjs/session` ; le starter n'inclut pas `@japa/api-client` (seulement `@japa/assert`, `@japa/plugin-adonisjs`, `@japa/browser-client`) : l'installer (`node ace add @japa/api-client` ou `npm i -D @japa/api-client` et l'ajouter aux `plugins` de `tests/bootstrap.ts`). Les suites configurées dans `adonisrc.ts` sont `unit`, `functional` et `browser` (`node ace test functional`). `.env.test` fixe `SESSION_DRIVER=memory` ; prévoir une base de test distincte (`DB_DATABASE`) quand on n'est plus sur SQLite.
 
 4. Lancez les tests :
 

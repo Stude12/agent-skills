@@ -103,22 +103,32 @@ export const transmit = new Transmit({
 
 ## 7. S abonner aux événements côté frontend
 
+L'API de `@adonisjs/transmit-client` (v1.x) est : `transmit.subscription(canal)` retourne un objet `Subscription` avec `create()`, `delete()` et `onMessage(handler)`. Les méthodes `transmit.listen()` / `transmit.unsubscribe()` **n'existent pas**.
+
 Exemple d intégration Vue :
 
 ```ts
 const userId = computed(() => page.props.user?.id)
+let subscription: ReturnType<typeof transmit.subscription> | null = null
 
-onMounted(() => {
-  transmit.listen(`todos/${userId.value}`, (event) => {
-    const payload = event.data
-    // Mettre à jour l état local en fonction de payload.action
+onMounted(async () => {
+  if (!userId.value) return
+  subscription = transmit.subscription(`todos/${userId.value}`)
+  subscription.onMessage((message: MessageType) => {
+    // message est directement le payload passé à transmit.broadcast()
+    // mettre à jour l état local en fonction de message.action
   })
+  await subscription.create()
 })
 
-onBeforeUnmount(() => {
-  transmit.unsubscribe(`todos/${userId.value}`)
+onBeforeUnmount(async () => {
+  await subscription?.delete()
 })
 ```
+
+- `onMessage` reçoit directement le payload (pas d'objet `event.data`).
+- Garder un état local (`items = ref([...props.todos])`) et le resynchroniser avec `watch(() => props.todos, ...)` lors des navigations Inertia.
+- `transmit.on('connected' | 'disconnected' | 'reconnecting', cb)` permet de suivre l'état de la connexion.
 
 ## 8. Notes de production
 
@@ -126,3 +136,4 @@ onBeforeUnmount(() => {
 - Utiliser Redis pour les déploiements multi-instance.
 - Éviter les canaux publics non autorisés.
 - Envoyer un payload minimal pour réduire la charge réseau.
+- Sérialiser explicitement le payload (`id`, `title`, `category`...) plutôt que `model.toJSON()` quand une relation est préchargée : la forme doit être identique à celle des props Inertia du contrôleur.
